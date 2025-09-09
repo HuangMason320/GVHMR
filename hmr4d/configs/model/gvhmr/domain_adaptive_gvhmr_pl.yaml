@@ -1,0 +1,37 @@
+# Domain Adaptive GVHMR Model Configuration
+
+_target_: hmr4d.model.gvhmr.domain_adaptive_gvhmr_pl.DomainAdaptiveGvhmrPL
+
+# Inherit all settings from base GVHMR
+pipeline: ${pipeline}
+optimizer: ${optimizer}
+scheduler_cfg: ${scheduler_cfg}
+
+# Domain adaptation specific parameters
+motion_discriminator:
+  _target_: hmr4d.model.gvhmr.domain_adaptive_gvhmr_pl.MotionDiscriminator
+  input_dim: 69  # SMPL body pose parameters (excluding global rotation)
+  hidden_dim: 1024
+  num_layers: 2
+  output_dim: 1
+  feature_pool: attention
+  attention_size: 256
+  attention_layers: 1
+  attention_dropout: 0.1
+
+# Training weights
+synthetic_weight: 1.0
+real_weight: 1.0
+discriminator_weight: 1.0
+
+# Confidence threshold scheduling
+confidence_threshold_start: 0.6
+confidence_threshold_end: 1.0
+confidence_step: 0.05
+
+# Augmentation settings
+num_augmentations: 2
+train_discriminator: True
+
+# Ignored weights prefix (inherited from base)
+ignored_weights_prefix: ["smplx", "pipeline.endecoder", "motion_discriminator"]

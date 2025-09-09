@@ -6,9 +6,11 @@ import hmr4d.dataset.threedpw.threedpw_motion_test
 import hmr4d.dataset.threedpw.threedpw_motion_train
 import hmr4d.dataset.bedlam.bedlam
 import hmr4d.dataset.h36m.h36m
+import hmr4d.dataset.domain_adaptive.dual_datamodule
 
 # Trainer: Model Optimizer Loss
 import hmr4d.model.gvhmr.gvhmr_pl
+import hmr4d.model.gvhmr.domain_adaptive_gvhmr_pl
 import hmr4d.model.gvhmr.utils.endecoder
 import hmr4d.model.common_utils.optimizer
 import hmr4d.model.common_utils.scheduler_cfg

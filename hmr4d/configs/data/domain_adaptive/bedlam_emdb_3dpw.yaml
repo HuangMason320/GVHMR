@@ -1,0 +1,62 @@
+# Domain Adaptive Data Configuration
+# BEDLAM (synthetic) + EMDB + 3DPW (real)
+
+_target_: hmr4d.dataset.domain_adaptive.dual_datamodule.DomainAdaptiveDataModule
+
+# Synthetic data configuration (BEDLAM)
+synthetic_data_config:
+  _target_: hmr4d.dataset.bedlam.bedlam.BedlamDataset
+  split: train
+  batch_size: 64
+  num_workers: 8
+  # Add any BEDLAM-specific configurations
+
+# Real data configuration (EMDB + 3DPW)
+real_data_config:
+  - _target_: hmr4d.dataset.emdb.emdb_motion_test.EmdbMotionTestDataset
+    split: train  # If available
+    batch_size: 32
+    num_workers: 4
+  - _target_: hmr4d.dataset.threedpw.threedpw_motion_train.ThreedpwMotionTrainDataset
+    split: train
+    batch_size: 32
+    num_workers: 4
+
+# Validation data (use EMDB for validation)
+val_data_config:
+  _target_: hmr4d.dataset.emdb.emdb_motion_test.EmdbMotionTestDataset
+  split: val
+  batch_size: 32
+  num_workers: 4
+
+# Test data (multiple real datasets)
+test_data_config:
+  - _target_: hmr4d.dataset.emdb.emdb_motion_test.EmdbMotionTestDataset
+    split: test
+    batch_size: 32
+    num_workers: 4
+  - _target_: hmr4d.dataset.threedpw.threedpw_motion_test.ThreedpwMotionTestDataset
+    split: test
+    batch_size: 32
+    num_workers: 4
+
+# Domain adaptation specific settings
+alternating_ratio: 1  # 1 synthetic batch : 1 real batch
+
+# Data loading options
+loader_opts:
+  train:
+    batch_size: 64
+    num_workers: 8
+    pin_memory: True
+    drop_last: True
+  val:
+    batch_size: 32
+    num_workers: 4
+    pin_memory: True
+    drop_last: False
+  test:
+    batch_size: 32
+    num_workers: 4
+    pin_memory: True
+    drop_last: False

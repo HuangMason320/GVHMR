@@ -1,0 +1,125 @@
+# @package _global_
+# Domain Adaptive GVHMR Training Configuration
+# Uses BEDLAM as synthetic data, EMDB+3DPW as real data
+
+defaults:
+  - override /data: domain_adaptive/bedlam_emdb_3dpw
+  - override /model: gvhmr/domain_adaptive_gvhmr_pl
+  - override /endecoder: gvhmr/v1_amass_local_bedlam_cam
+  - override /optimizer: adamw_2e-4
+  - override /scheduler_cfg: epoch_half_200_350
+  - override /train_datasets:
+      - imgfeat_bedlam/v2  # Synthetic data
+  - override /test_datasets:
+      - emdb1/v1_fliptest  # Real data for testing
+      - emdb2/v1_fliptest
+      - 3dpw/fliptest
+  - override /callbacks:
+      - simple_ckpt_saver/every10e_top100
+      - prog_bar/prog_reporter_every0.1
+      - train_speed_timer/base
+      - lr_monitor/pl
+      - metric_emdb1
+      - metric_emdb2
+      - metric_3dpw
+  - override /network: gvhmr/relative_transformer
+
+exp_name_base: domain_adaptive_bedlam_emdb_3dpw
+exp_name_var: ""
+exp_name: ${exp_name_base}${exp_name_var}
+data_name: domain_adaptive_v1
+
+# Pipeline configuration (same as original GVHMR)
+pipeline:
+  _target_: hmr4d.model.gvhmr.pipeline.gvhmr_pipeline.Pipeline
+  args_denoiser3d: ${network}
+  args:
+    endecoder_opt: ${endecoder}
+    normalize_cam_angvel: True
+    weights:
+      cr_j3d: 500.
+      transl_c: 1.
+      cr_verts: 500.
+      j2d: 1000.
+      verts2d: 1000.
+      transl_w: 1.
+      static_conf_bce: 1.
+    static_conf:
+      vel_thr: 0.15
+
+# Domain adaptation specific settings
+domain_adaptation:
+  # Motion discriminator configuration
+  motion_discriminator:
+    _target_: hmr4d.model.gvhmr.domain_adaptive_gvhmr_pl.MotionDiscriminator
+    input_dim: 69  # SMPL body pose parameters (72-3 for global rotation)
+    hidden_dim: 1024
+    num_layers: 2
+    output_dim: 1
+    feature_pool: attention
+    attention_size: 256
+    attention_layers: 1
+    attention_dropout: 0.1
+
+  # Training weights
+  synthetic_weight: 1.0
+  real_weight: 1.0
+  discriminator_weight: 1.0
+
+  # Confidence threshold scheduling
+  confidence_threshold_start: 0.6
+  confidence_threshold_end: 1.0
+  confidence_step: 0.05
+
+  # Augmentation settings
+  num_augmentations: 2
+  train_discriminator: True
+
+  # Alternating training
+  alternating_ratio: 1  # 1 synthetic : 1 real
+
+# Data configuration
+data:
+  loader_opts:
+    train:
+      batch_size: 64  # Smaller batch size for domain adaptation
+      num_workers: 8
+    val:
+      batch_size: 32
+      num_workers: 4
+    test:
+      batch_size: 32
+      num_workers: 4
+
+# Training configuration
+pl_trainer:
+  precision: 16-mixed
+  log_every_n_steps: 50
+  gradient_clip_val: 0.5
+  max_epochs: 300  # Longer training for domain adaptation
+  check_val_every_n_epoch: 10
+  devices: 1
+  accumulate_grad_batches: 2  # Compensate for smaller batch size
+
+# Logging
+logger:
+  _target_: pytorch_lightning.loggers.TensorBoardLogger
+  save_dir: ${output_dir}
+  name: ""
+  version: "domain_adaptive_tb"
+
+# Optimizer configuration for domain adaptation
+optimizer:
+  _target_: torch.optim.AdamW
+  lr: 1e-4  # Lower learning rate for domain adaptation
+  weight_decay: 1e-4
+  betas: [0.9, 0.999]
+
+# Learning rate scheduler
+scheduler_cfg:
+  _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+  mode: min
+  factor: 0.5
+  patience: 20
+  verbose: True
+  min_lr: 1e-6
